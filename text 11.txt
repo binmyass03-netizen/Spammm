@@ -1,0 +1,249 @@
+-- Neighbor Hub - Updated GUI & Name
+-- Original logic by Onyx Yogi
+-- MAX SPEED CAPPED AT 80
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local CoreGui = game:GetService("CoreGui")
+
+-- Controls
+local PlayerScripts = player:WaitForChild("PlayerScripts")
+local PlayerModule = require(PlayerScripts:WaitForChild("PlayerModule"))
+local Controls = PlayerModule:GetControls()
+
+-- ScreenGui
+local sg = Instance.new("ScreenGui")
+sg.Name = "NeighborHubGui"
+sg.ResetOnSpawn = false
+sg.IgnoreGuiInset = true
+sg.Parent = CoreGui
+
+-- Main Frame (Updated for Neighbor Hub Style)
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 180, 0, 140)
+frame.Position = UDim2.new(0.5, -90, 0.5, -70)
+frame.BackgroundColor3 = Color3.fromRGB(20, 30, 45) -- Deep Neighborhood Blue
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Parent = sg
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = frame
+
+local borderStroke = Instance.new("UIStroke")
+borderStroke.Color = Color3.fromRGB(85, 170, 85) -- Grass Green Border
+borderStroke.Thickness = 3
+borderStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+borderStroke.Parent = frame
+
+local waveGradient = Instance.new("UIGradient")
+waveGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(85, 170, 85)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(85, 170, 85))
+})
+waveGradient.Parent = borderStroke
+
+local pulseInfo = TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
+TweenService:Create(borderStroke, pulseInfo, {Thickness = 4.5, Transparency = 0.2}):Play()
+
+RunService.Heartbeat:Connect(function(dt)
+    waveGradient.Rotation = (waveGradient.Rotation + 120 * dt) % 360
+end)
+
+-- Title
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 35)
+title.Position = UDim2.new(0, 0, 0, 5)
+title.BackgroundTransparency = 1
+title.Text = "NEIGHBOR HUB"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 16
+title.Parent = frame
+
+-- Fly Toggle Button
+local flyButton = Instance.new("TextButton")
+flyButton.Size = UDim2.new(0.85, 0, 0, 34)
+flyButton.Position = UDim2.new(0.075, 0, 0.32, 0)
+flyButton.BackgroundColor3 = Color3.fromRGB(35, 45, 60)
+flyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+flyButton.Font = Enum.Font.GothamBlack
+flyButton.TextSize = 14
+flyButton.Text = "FLY OFF"
+flyButton.Parent = frame
+
+local flyCorner = Instance.new("UICorner", flyButton)
+flyCorner.CornerRadius = UDim.new(0, 8)
+
+-- Speed Box
+local speedBox = Instance.new("TextBox")
+speedBox.Size = UDim2.new(0.85, 0, 0, 32)
+speedBox.Position = UDim2.new(0.075, 0, 0.65, 0)
+speedBox.Text = ""                           
+speedBox.PlaceholderText = "SET SPEED (MAX 80)"
+speedBox.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
+speedBox.BackgroundColor3 = Color3.fromRGB(15, 20, 30)
+speedBox.TextColor3 = Color3.fromRGB(85, 170, 85)
+speedBox.Font = Enum.Font.GothamBold
+speedBox.TextSize = 14
+speedBox.Parent = frame
+
+local speedBoxCorner = Instance.new("UICorner", speedBox)
+speedBoxCorner.CornerRadius = UDim.new(0, 8)
+
+-- Hover effects
+for _, el in {flyButton, speedBox} do
+    el.MouseEnter:Connect(function()
+        TweenService:Create(el, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 65, 90)}):Play()
+    end)
+    el.MouseLeave:Connect(function()
+        TweenService:Create(el, TweenInfo.new(0.2), {BackgroundColor3 = (el == speedBox and Color3.fromRGB(15, 20, 30) or Color3.fromRGB(35, 45, 60))}):Play()
+    end)
+end
+
+-- Draggable logic
+local dragging, dragStart, startPos
+frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+        end)
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- Core Variables & Functions (Unchanged)
+local flying = false
+local currentSpeed = 50
+local MAX_SPEED = 80
+local bv, bg, flyConn
+local carpetTool = nil
+local TOOL_NAME = "Flying Carpet"
+
+local function hideToolVisuals(tool)
+    if not tool then return end
+    for _, obj in tool:GetDescendants() do
+        if obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("Decal") or obj:IsA("Texture") then
+            obj.Transparency = 1
+        end
+        if obj:IsA("BasePart") then obj.CanCollide = false; obj.Massless = true end
+    end
+end
+
+local function showToolVisuals(tool)
+    if not tool then return end
+    for _, obj in tool:GetDescendants() do
+        if obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("Decal") or obj:IsA("Texture") then obj.Transparency = 0 end
+    end
+end
+
+local function findAndEquipCarpet()
+    local backpack = player:WaitForChild("Backpack")
+    local char = player.Character
+    if not char then return false end
+    carpetTool = backpack:FindFirstChild(TOOL_NAME) or char:FindFirstChild(TOOL_NAME)
+    if carpetTool and carpetTool:IsA("Tool") then
+        if carpetTool.Parent == backpack then
+            char:WaitForChild("Humanoid"):EquipTool(carpetTool)
+            task.wait(0.2)
+        end
+        hideToolVisuals(carpetTool)
+        return true
+    end
+    return false
+end
+
+local function updateSpeed()
+    local raw = speedBox.Text
+    local cleaned = raw:gsub("[^%d]", "")
+    local num = tonumber(cleaned)
+    if num then
+        currentSpeed = math.clamp(num, 10, MAX_SPEED)
+        if cleaned ~= raw or num > MAX_SPEED then speedBox.Text = tostring(currentSpeed) end
+    elseif cleaned == "" then
+        currentSpeed = 50
+    else
+        speedBox.Text = tostring(currentSpeed)
+    end
+end
+
+speedBox:GetPropertyChangedSignal("Text"):Connect(updateSpeed)
+
+local function startFly()
+    local char = player.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hrp or not hum then return end
+
+    findAndEquipCarpet()
+    flying = true
+    flyButton.Text = "FLY ON"
+    flyButton.BackgroundColor3 = Color3.fromRGB(85, 170, 85)
+    hum.PlatformStand = true
+
+    bg = Instance.new("BodyGyro")
+    bg.MaxTorque = Vector3.new(4e5, 4e5, 4e5)
+    bg.P = 15000
+    bg.Parent = hrp
+
+    bv = Instance.new("BodyVelocity")
+    bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+    bv.Velocity = Vector3.zero
+    bv.Parent = hrp
+
+    flyConn = RunService.Heartbeat:Connect(function()
+        if not flying or not hrp or not hrp.Parent then return end
+        local cam = workspace.CurrentCamera
+        local move = Controls:GetMoveVector()
+        local right = cam.CFrame.RightVector
+        local look = cam.CFrame.LookVector
+        local horiz = right * move.X + look * -move.Z
+        local vert = 0
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then vert += 1 end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.C) then vert -= 1 end
+        bv.Velocity = horiz * currentSpeed + Vector3.new(0, vert * currentSpeed, 0)
+        bg.CFrame = cam.CFrame
+    end)
+end
+
+local function stopFly()
+    flying = false
+    flyButton.Text = "FLY OFF"
+    flyButton.BackgroundColor3 = Color3.fromRGB(170, 50, 50)
+    if flyConn then flyConn:Disconnect() flyConn = nil end
+    if bv then bv:Destroy() bv = nil end
+    if bg then bg:Destroy() bg = nil end
+    local char = player.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then hum.PlatformStand = false end
+        if carpetTool and carpetTool.Parent == char then
+            showToolVisuals(carpetTool)
+            carpetTool.Parent = player.Backpack
+            carpetTool = nil
+        end
+    end
+end
+
+flyButton.Activated:Connect(function()
+    if flying then stopFly() else startFly() end
+end)
+
+player.CharacterAdded:Connect(stopFly)
+
+print("Neighbor Hub Loaded - Maximum Speed: 80")
