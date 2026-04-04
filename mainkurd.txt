@@ -1,0 +1,320 @@
+-- Chunk: nil
+
+local player = game:GetService("Players").LocalPlayer
+local gui = Instance.new("ScreenGui")
+gui.Name = "Jack827PremiumGUI"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+-- STRONG ANTI-KICK PROTECTION
+local function antiKick()
+    for _,v in pairs(getconnections(player.Idled)) do
+        v:Disable()
+    end
+    game:GetService("ScriptContext").Error:Connect(function() return end)
+    local mt = getrawmetatable(game)
+    setreadonly(mt, false)
+    local old = mt.__namecall
+    mt.__namecall = newcclosure(function(self, ...)
+        local method = getnamecallmethod()
+        if method == "Kick" or method == "kick" then
+            return nil
+        end
+        return old(self, ...)
+    end)
+end
+antiKick()
+
+-- GUI
+local frame = Instance.new("Frame")
+frame.Name = "MainFrame"
+frame.Size = UDim2.new(0, 140, 0, 100)
+frame.Position = UDim2.new(1, -160, 0.5, -50)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.BackgroundTransparency = 0.15
+frame.Active = true
+frame.Draggable = true
+frame.Parent = gui
+
+local uicorner = Instance.new("UICorner")
+uicorner.CornerRadius = UDim.new(0, 6)
+uicorner.Parent = frame
+
+local title = Instance.new("TextLabel")
+title.Name = "Title"
+title.Text = "Tik: Jack 827 [ Auto Steal ]"
+title.Size = UDim2.new(1, 0, 0, 20)
+title.Position = UDim2.new(0, 0, 0, 0)
+title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+title.TextColor3 = Color3.fromRGB(255, 50, 50)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 12
+title.Parent = frame
+
+local divider = Instance.new("Frame")
+divider.Size = UDim2.new(1, 0, 0, 1)
+divider.Position = UDim2.new(0, 0, 0, 20)
+divider.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+divider.BorderSizePixel = 0
+divider.Parent = frame
+
+local function createButton(name, text, position, color)
+    local btn = Instance.new("TextButton")
+    btn.Name = name
+    btn.Text = text
+    btn.Size = UDim2.new(0.9, 0, 0, 30)
+    btn.Position = position
+    btn.BackgroundColor3 = color
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 11
+    btn.Parent = frame
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 4)
+    btnCorner.Parent = btn
+    return btn
+end
+
+local shootBtn = createButton("ShootButton", "🔫 SHOOT", UDim2.new(0.05, 0, 0, 25), Color3.fromRGB(180, 40, 40))
+local speedBtn = createButton("SpeedButton", "⚡ Jack", UDim2.new(0.05, 0, 0, 60), Color3.fromRGB(40, 40, 180))
+
+-- Variables
+local shotTarget = nil
+local plotSigns = workspace:FindFirstChild("PlotSigns") or workspace:FindFirstChild("Plots")
+
+-- Helper functions
+local function getNearestPlayer()
+    local character = player.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return nil end
+    local nearestPlayer, shortestDistance = nil, math.huge
+    local myPosition = character.HumanoidRootPart.Position
+    for _, otherPlayer in ipairs(game:GetService("Players"):GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character then
+            local hrp = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local distance = (hrp.Position - myPosition).Magnitude
+                if distance < shortestDistance then
+                    shortestDistance = distance
+                    nearestPlayer = otherPlayer
+                end
+            end
+        end
+    end
+    return nearestPlayer
+end
+
+local function hasTool(toolName)
+    local backpack = player:FindFirstChild("Backpack")
+    return backpack and backpack:FindFirstChild(toolName) ~= nil
+end
+
+local function buyTool(toolName)
+    local success, result = pcall(function()
+        return game:GetService("ReplicatedStorage"):WaitForChild("Packages")
+            :WaitForChild("Net"):WaitForChild("RF/CoinsShopService/RequestBuy"):InvokeServer(toolName)
+    end)
+    return success and result
+end
+
+local function equipTool(toolName)
+    local backpack = player:FindFirstChild("Backpack")
+    if not backpack then return false end
+    local tool = backpack:FindFirstChild(toolName)
+    if not tool then return false end
+    tool.Parent = player.Character
+    return true
+end
+
+local function unequipAllTools()
+    local char = player.Character
+    local backpack = player:FindFirstChild("Backpack")
+    if not char or not backpack then return end
+    for _, tool in ipairs(char:GetChildren()) do
+        if tool:IsA("Tool") then
+            tool.Parent = backpack
+        end
+    end
+end
+
+local function useWebSlinger(targetPart)
+    if not targetPart then return end
+    local args = {
+        Vector3.new(-481, -6, -64),
+        targetPart
+    }
+    pcall(function()
+        game:GetService("ReplicatedStorage"):WaitForChild("Packages")
+            :WaitForChild("Net"):WaitForChild("RE/UseItem"):FireServer(unpack(args))
+    end)
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Shot",
+        Text = "Web Slinger fired!",
+        Duration = 5
+    })
+end
+
+local function teleportToPosition(pos)
+    local char = player.Character
+    if not char then return false end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return false end
+
+    local success = false
+    for i = 1, 15 do
+        hrp.CFrame = CFrame.new(pos + Vector3.new(0,6,0))
+        task.wait(0.05)
+        if (hrp.Position - pos).Magnitude < 3 then
+            success = true
+            break
+        end
+    end
+    return success
+end
+
+local function equipOnlyTool(toolName)
+    -- Unequip all then equip only this tool
+    unequipAllTools()
+    if hasTool(toolName) then
+        equipTool(toolName)
+        task.wait(0.3)
+        return true
+    else
+        if buyTool(toolName) then
+            task.wait(0.5)
+            equipTool(toolName)
+            task.wait(0.3)
+            return true
+        else
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = "Error",
+                Text = "Failed to buy "..toolName.."!",
+                Duration = 4
+            })
+            return false
+        end
+    end
+end
+
+-- Shoot button logic
+shootBtn.MouseButton1Click:Connect(function()
+    local target = getNearestPlayer()
+    if target and target.Character then
+        shotTarget = target
+        -- Equip only Web Slinger
+        if not equipOnlyTool("Web Slinger") then return end
+        local hand = shotTarget.Character:FindFirstChild("RightHand") or shotTarget.Character:FindFirstChild("LeftHand")
+        if not hand then
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = "Error",
+                Text = "Target hand not found!",
+                Duration = 5
+            })
+            return
+        end
+        useWebSlinger(hand)
+    else
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Error",
+            Text = "No player nearby found!",
+            Duration = 4
+        })
+    end
+end)
+
+-- Speed button logic with 4 tries + unequip all + equip Speed Coil after 3 failed tries
+speedBtn.MouseButton1Click:Connect(function()
+    if not shotTarget or not shotTarget.Character then
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Error",
+            Text = "No target saved! Use SHOOT first!",
+            Duration = 4
+        })
+        return
+    end
+
+    local function matchesName(text)
+        if not text then return false end
+        local targetName = string.lower(shotTarget.Name)
+        local displayName = string.lower(shotTarget.DisplayName)
+        text = string.lower(text)
+        return string.find(text, targetName) or string.find(text, displayName)
+    end
+
+    local targetPlot = nil
+    for _, plot in ipairs(plotSigns:GetDescendants()) do
+        if plot:IsA("BasePart") and plot.Name == "PlotSign" then
+            for _, gui in ipairs(plot:GetDescendants()) do
+                if gui:IsA("SurfaceGui") then
+                    for _, label in ipairs(gui:GetDescendants()) do
+                        if label:IsA("TextLabel") and matchesName(label.Text) then
+                            targetPlot = plot
+                            break
+                        end
+                    end
+                end
+            end
+        end
+        if targetPlot then break end
+    end
+
+    if not targetPlot then
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Error",
+            Text = "Target plot not found!",
+            Duration = 4
+        })
+        return
+    end
+
+    local pos = targetPlot.Position
+    local success = false
+    for try = 1, 4 do
+        if try == 4 then
+            -- Unequip all tools then equip Speed Coil before last try
+            unequipAllTools()
+            if not equipOnlyTool("Speed Coil") then
+                return
+            end
+        end
+
+        success = teleportToPosition(pos)
+        if success then break end
+        task.wait(0.1)
+    end
+
+    if success then
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Success",
+            Text = "Teleported to target plot!",
+            Duration = 5
+        })
+    else
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Jack 827",
+            Text = "!",
+            Duration = 0.1
+        })
+    end
+
+    shotTarget = nil
+end)
+
+-- Reset on respawn
+game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function(char)
+    task.wait(0.7)
+    if char:FindFirstChildOfClass("Humanoid") then
+        char.Humanoid.PlatformStand = false
+    end
+    local animate = char:FindFirstChild("Animate")
+    if animate then
+        animate.Disabled = false
+    end
+end)
+
+-- Tip notification
+game:GetService("StarterGui"):SetCore("SendNotification", {
+    Title = "Tiktok: Jack_827",
+    Text = "Shoot your friend and tell him take brainrot then click jack.",
+    Icon = "rbxthumb://type=Asset&id=5107182114&w=150&h=150",
+    Duration = 15
+})
